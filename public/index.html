@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodeAlpha Store</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f9f9f9; padding: 20px; max-width: 800px; margin: 0 auto; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .product-item { border-bottom: 1px solid #eee; padding: 10px 0; display: flex; justify-content: space-between; align-items: center; }
+        button { background-color: #28a745; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; }
+        input { padding: 8px; margin-right: 10px; border: 1px solid #ccc; border-radius: 4px; }
+        #store-section { display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="card" id="login-section">
+        <h2>CodeAlpha E-commerce</h2>
+        <input type="text" id="username" placeholder="Username">
+        <input type="password" id="password" placeholder="Password">
+        <button onclick="loginUser()">Login / Register</button>
+    </div>
+
+    <div id="store-section">
+        <div class="card">
+            <h2>Products</h2>
+            <div id="product-list"></div>
+        </div>
+
+        <div class="card">
+            <h2>🛒 Cart</h2>
+            <ul id="cart-list"></ul>
+            <p><strong>Total: $<span id="cart-total">0</span></strong></p>
+            <button onclick="checkoutCart()">Checkout</button>
+            <p id="checkout-message" style="color: green; margin-top: 10px;"></p>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = '';
+        let cart = [];
+        let cartTotal = 0;
+
+        async function loginUser() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            if(!username || !password) return;
+
+            const res = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await res.json();
+            
+            if (data.username) {
+                currentUser = data.username;
+                document.getElementById('login-section').style.display = 'none';
+                document.getElementById('store-section').style.display = 'block';
+                loadProducts();
+            }
+        }
+
+        async function loadProducts() {
+            const res = await fetch('/api/products');
+            const products = await res.json();
+            const list = document.getElementById('product-list');
+            list.innerHTML = '';
+            
+            products.forEach(p => {
+                list.innerHTML += `
+                    <div class="product-item">
+                        <div><strong>${p.name}</strong> - $${p.price} <br><small>${p.description}</small></div>
+                        <button onclick="addToCart('${p.name}', ${p.price})">Add</button>
+                    </div>`;
+            });
+        }
+
+        function addToCart(name, price) {
+            cart.push({ name, price });
+            cartTotal += price;
+            updateCartDisplay();
+        }
+
+        function updateCartDisplay() {
+            const cartList = document.getElementById('cart-list');
+            cartList.innerHTML = '';
+            cart.forEach(item => cartList.innerHTML += `<li>${item.name} - $${item.price}</li>`);
+            document.getElementById('cart-total').innerText = cartTotal;
+        }
+
+        async function checkoutCart() {
+            if (cart.length === 0) return;
+            const res = await fetch('/api/checkout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: currentUser, cart })
+            });
+            const data = await res.json();
+            document.getElementById('checkout-message').innerText = `${data.message} (Order ID: ${data.orderId})`;
+            cart = [];
+            cartTotal = 0;
+            updateCartDisplay();
+        }
+    </script>
+</body>
+</html>
